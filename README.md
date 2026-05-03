@@ -109,6 +109,7 @@ SQLite with tables: `users`, `candidate_profiles`, `monitored_locations`, `detec
 ## Tech Stack
 
 - **Frontend**: React 18 + Vite + React Router
+- **Mobile**: React Native + Expo (Android APK)
 - **Backend**: Node.js + Express
 - **Database**: SQLite (better-sqlite3)
 - **Auth**: JWT + bcrypt
@@ -117,3 +118,38 @@ SQLite with tables: `users`, `candidate_profiles`, `monitored_locations`, `detec
 - **Notifications**: Nodemailer, Telegram Bot API, Web Push
 - **Automation**: Playwright (user-controlled browser)
 - **Security**: Helmet, CORS, rate limiting
+
+## 📱 Mobile App (Android APK)
+
+The `mobile/` folder contains a React Native Expo app that connects to the backend.
+
+### Build the APK
+
+```bash
+# Prerequisites
+npm install -g eas-cli expo-cli
+
+# Install mobile dependencies
+cd mobile && npm install
+
+# Option 1: Build APK via Expo EAS (cloud build, free tier)
+npx eas login
+npx eas build -p android --profile preview
+# Download the .apk from the URL provided
+
+# Option 2: Build locally (requires Android SDK)
+npx expo prebuild --platform android
+cd android && ./gradlew assembleRelease
+# APK at: android/app/build/outputs/apk/release/app-release.apk
+```
+
+### Connect to your server
+
+1. Run the backend on your PC: `cd server && npm run dev`
+2. Find your PC's local IP: `ipconfig` (Windows) or `ifconfig` (Mac/Linux)
+3. On the mobile app login screen, tap the server URL and enter: `http://YOUR_PC_IP:3001`
+4. Make sure your phone and PC are on the same WiFi network
+
+### For remote access (outside home network)
+
+Deploy the backend to a cloud server (Railway, Render, VPS) and point the mobile app to that URL.

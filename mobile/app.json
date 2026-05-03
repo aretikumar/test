@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Amazon Job Monitor",
+    "slug": "amazon-job-monitor",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0d0d14"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0d0d14"
+      },
+      "package": "com.jobmonitor.amazon",
+      "permissions": ["NOTIFICATIONS"]
+    },
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#ff9900"
+        }
+      ]
+    ]
+  }
+}

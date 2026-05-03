@@ -20,7 +20,7 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({ origin: ['http://localhost:5173', 'http://localhost:3000'], credentials: true }));
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 200 }));
 
@@ -49,7 +49,8 @@ setTimeout(() => {
   runMonitorCycle().catch(err => console.error('[cron] Initial cycle error:', err));
 }, 10000);
 
-app.listen(PORT, () => {
-  console.log(`[server] Running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`[server] Running on http://0.0.0.0:${PORT}`);
   console.log('[server] Auto-apply monitor scheduled (every 5 min)');
+  console.log('[server] Connect mobile app to http://<your-pc-ip>:' + PORT);
 });
