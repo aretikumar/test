@@ -1,82 +1,75 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { colors } from '../theme';
-import { api } from '../api';
+import { C } from '../theme';
+import { getProfile, saveProfile } from '../storage';
 
 const FIELDS = [
   { key: 'full_name', label: 'Full Name' },
-  { key: 'email', label: 'Email', keyboard: 'email-address' },
-  { key: 'phone', label: 'Phone', keyboard: 'phone-pad' },
+  { key: 'email', label: 'Email', kb: 'email-address' },
+  { key: 'phone', label: 'Phone', kb: 'phone-pad' },
   { key: 'address', label: 'Address' },
-  { key: 'work_eligibility', label: 'Work Eligibility', placeholder: 'e.g. Student visa – 20hrs/week' },
-  { key: 'student_availability', label: 'Availability', placeholder: 'e.g. Evenings & weekends' },
-  { key: 'preferred_shifts', label: 'Preferred Shifts', placeholder: 'e.g. Evening, Night, Weekend' },
-  { key: 'amazon_email', label: 'Amazon Account Email', keyboard: 'email-address' },
+  { key: 'work_eligibility', label: 'Work Eligibility', ph: 'e.g. Student visa – 20hrs/week' },
+  { key: 'student_availability', label: 'Availability', ph: 'e.g. Evenings & weekends' },
+  { key: 'preferred_shifts', label: 'Preferred Shifts', ph: 'e.g. Evening, Night, Weekend' },
+  { key: 'amazon_email', label: 'Amazon Account Email', kb: 'email-address' },
 ];
 
 export default function ProfileScreen() {
   const [form, setForm] = useState({});
-  const [coverNote, setCoverNote] = useState('');
+  const [note, setNote] = useState('');
 
   useEffect(() => {
-    api.get('/profile').then(p => { if (p) { setForm(p); setCoverNote(p.cover_note || ''); } }).catch(() => {});
+    getProfile().then(p => { setForm(p); setNote(p.cover_note || ''); });
   }, []);
 
   const save = async () => {
-    try {
-      await api.put('/profile', { ...form, cover_note: coverNote });
-      Alert.alert('Saved', 'Profile updated ✓');
-    } catch (err) { Alert.alert('Error', err.message); }
+    await saveProfile({ ...form, cover_note: note });
+    Alert.alert('Saved', 'Profile updated ✓');
   };
 
-  const deleteProfile = () => {
-    Alert.alert('Delete Profile', 'Delete all profile data?', [
+  const clear = () => {
+    Alert.alert('Delete Profile', 'Clear all profile data?', [
       { text: 'Cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
-        await api.delete('/profile');
-        setForm({}); setCoverNote('');
-      }},
+      { text: 'Delete', style: 'destructive', onPress: async () => { await saveProfile({}); setForm({}); setNote(''); } },
     ]);
   };
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={{ padding: 16 }}>
+    <ScrollView style={s.wrap} contentContainerStyle={{ padding: 16 }}>
       <View style={s.card}>
         {FIELDS.map(f => (
-          <View key={f.key} style={s.fieldWrap}>
+          <View key={f.key} style={s.fw}>
             <Text style={s.label}>{f.label}</Text>
-            <TextInput style={s.input} value={form[f.key] || ''} placeholder={f.placeholder || ''}
-              placeholderTextColor={colors.dim} keyboardType={f.keyboard || 'default'}
-              autoCapitalize={f.keyboard ? 'none' : 'words'}
+            <TextInput style={s.input} value={form[f.key] || ''} placeholder={f.ph || ''}
+              placeholderTextColor={C.dim} keyboardType={f.kb || 'default'}
+              autoCapitalize={f.kb ? 'none' : 'words'}
               onChangeText={v => setForm(p => ({ ...p, [f.key]: v }))} />
           </View>
         ))}
-        <View style={s.fieldWrap}>
+        <View style={s.fw}>
           <Text style={s.label}>Cover Note</Text>
-          <TextInput style={[s.input, { height: 80, textAlignVertical: 'top' }]} value={coverNote}
-            onChangeText={setCoverNote} multiline placeholder="Optional cover note"
-            placeholderTextColor={colors.dim} />
+          <TextInput style={[s.input, { height: 80, textAlignVertical: 'top' }]} value={note}
+            onChangeText={setNote} multiline placeholder="Optional" placeholderTextColor={C.dim} />
         </View>
       </View>
-
       <TouchableOpacity style={s.saveBtn} onPress={save}>
-        <Text style={s.saveBtnText}>Save Profile</Text>
+        <Text style={s.saveTxt}>Save Profile</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={s.deleteBtn} onPress={deleteProfile}>
-        <Text style={s.deleteBtnText}>Delete Profile Data</Text>
+      <TouchableOpacity style={s.delBtn} onPress={clear}>
+        <Text style={s.delTxt}>Delete Profile Data</Text>
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  card: { backgroundColor: colors.card, borderRadius: 10, padding: 16, borderWidth: 1, borderColor: colors.border, marginBottom: 12 },
-  fieldWrap: { marginBottom: 12 },
-  label: { color: colors.dim, fontSize: 12, marginBottom: 4 },
-  input: { backgroundColor: colors.input, borderWidth: 1, borderColor: colors.border, borderRadius: 8, color: colors.text, padding: 10, fontSize: 14 },
-  saveBtn: { backgroundColor: colors.accent, borderRadius: 10, padding: 14, alignItems: 'center', marginBottom: 10 },
-  saveBtnText: { color: '#000', fontWeight: '600', fontSize: 15 },
-  deleteBtn: { backgroundColor: colors.card, borderRadius: 10, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: colors.danger },
-  deleteBtnText: { color: colors.danger, fontSize: 13 },
+  wrap: { flex: 1, backgroundColor: C.bg },
+  card: { backgroundColor: C.card, borderRadius: 10, padding: 16, borderWidth: 1, borderColor: C.border, marginBottom: 12 },
+  fw: { marginBottom: 12 },
+  label: { color: C.dim, fontSize: 12, marginBottom: 4 },
+  input: { backgroundColor: C.input, borderWidth: 1, borderColor: C.border, borderRadius: 8, color: C.text, padding: 10, fontSize: 14 },
+  saveBtn: { backgroundColor: C.accent, borderRadius: 10, padding: 14, alignItems: 'center', marginBottom: 10 },
+  saveTxt: { color: '#000', fontWeight: '600', fontSize: 15 },
+  delBtn: { backgroundColor: C.card, borderRadius: 10, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: C.danger, marginBottom: 30 },
+  delTxt: { color: C.danger, fontSize: 13 },
 });

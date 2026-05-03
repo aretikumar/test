@@ -4,7 +4,6 @@
     "slug": "amazon-job-monitor",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
       "backgroundColor": "#0d0d14"
@@ -14,17 +13,20 @@
         "backgroundColor": "#0d0d14"
       },
       "package": "com.jobmonitor.amazon",
-      "permissions": ["NOTIFICATIONS"]
+      "permissions": [
+        "NOTIFICATIONS",
+        "RECEIVE_BOOT_COMPLETED",
+        "WAKE_LOCK"
+      ]
     },
     "plugins": [
-      "expo-secure-store",
       [
         "expo-notifications",
         {
-          "icon": "./assets/icon.png",
           "color": "#ff9900"
         }
-      ]
+      ],
+      "expo-background-fetch"
     ]
   }
 }
