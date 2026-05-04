@@ -3,6 +3,7 @@ import { notifyApplied, notifyError } from './notifier.js';
 import { autoApply } from './playwright.js';
 
 const AMAZON_JOBS_API = 'https://www.amazon.jobs/en-gb/search.json';
+const APPLY_BASE = 'https://www.jobsatamazon.co.uk';
 
 const KEYWORDS = [
   'warehouse operative',
@@ -93,7 +94,7 @@ export async function runMonitorCycle() {
         continue;
       }
 
-      const jobUrl = job.job_path ? `https://www.amazon.jobs${job.job_path}` : (job.url || '');
+      const jobUrl = `${APPLY_BASE}/search?location=${encodeURIComponent(job._searchLocation || '')}&schedule=part-time`;
 
       // Insert job immediately
       db.prepare('INSERT INTO detected_jobs (job_id_external, title, location, job_type, shift, job_url, description, status) VALUES (?,?,?,?,?,?,?,?)')

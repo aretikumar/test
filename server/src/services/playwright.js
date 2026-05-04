@@ -1,121 +1,96 @@
-/**
- * Fast auto-apply via Playwright.
- * Uses a persistent browser profile so the user only logs into Amazon once.
- * After that, applications happen automatically without user interaction.
- * 
- * SAFETY: Still refuses full-time roles. Still can't bypass CAPTCHA —
- * if Amazon requires CAPTCHA, the attempt fails and user is notified.
- */
 import db from '../db.js';
 import { decrypt } from '../crypto.js';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
+import { execFile } from 'child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const USER_DATA_DIR = join(__dirname, '..', '..', 'playwright-data');
+const USER_DATA_DIR = join(__dirname, '..', '..', 'chrome-profile');
+const APPLY_BASE = 'https://www.jobsatamazon.co.uk';
 
-let browserContext = null;
+// Ensure profile dir exists
+mkdirSync(USER_DATA_DIR, { recursive: true });
 
-async function getBrowser() {
-  if (browserContext) return browserContext;
-  const { chromium } = await import('playwright');
-  browserContext = await chromium.launchPersistentContext(USER_DATA_DIR, {
-    headless: false,
-    args: ['--start-maximized'],
-    viewport: null
-  });
-  return browserContext;
+function findChrome() {
+  const paths = [
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    process.env.LOCALAPPDATA && join(process.env.LOCALAPPDATA, 'Google\\Chrome\\Application\\chrome.exe'),
+    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium-browser',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  ].filter(Boolean);
+  for (const p of paths) {
+    if (existsSync(p)) return p;
+  }
+  return null;
 }
 
+let chromeProcess = null;
+
+/**
+ * Launch REAL Chrome as a normal process — NOT through Playwright.
+ * This is a completely normal Chrome window that Amazon cannot detect.
+ * The user logs in manually, OTP works normally, session is saved in chrome-profile/.
+ */
+function launchRealChrome(url) {
+  const chrome = findChrome();
+  if (!chrome) throw new Error('Chrome/Edge not found. Please install Google Chrome.');
+
+  const args = [
+    `--user-data-dir=${USER_DATA_DIR}`,
+    '--no-first-run',
+    '--no-default-browser-check',
+    '--start-maximized',
+    url,
+  ];
+
+  chromeProcess = execFile(chrome, args, (err) => {
+    if (err && err.code !== null) console.log('[chrome] Process exited:', err.message);
+    chromeProcess = null;
+  });
+
+  console.log(`[chrome] Launched real Chrome (PID: ${chromeProcess.pid}) → ${url}`);
+}
+
+/**
+ * Open login page in REAL Chrome — no Playwright, no automation detection.
+ * Amazon will send OTP normally because this is a genuine Chrome browser.
+ */
+export async function openLoginSession() {
+  const url = `${APPLY_BASE}/login`;
+  launchRealChrome(url);
+  return {
+    message: 'Real Chrome opened → jobsatamazon.co.uk/login. Log in normally — OTP will work. Once logged in, close the browser. The session is saved for auto-apply.'
+  };
+}
+
+/**
+ * Auto-apply: open the job search page in the same Chrome profile.
+ * Since the user already logged in, the session cookies are there.
+ */
 export async function autoApply(userId, job) {
-  // Hard block on full-time
   if (job.job_type?.toLowerCase().includes('full-time')) {
     throw new Error('BLOCKED: Full-time role — not safe for student visa');
   }
   if (!job.job_url) throw new Error('No job URL');
 
-  const profile = db.prepare('SELECT * FROM candidate_profiles WHERE user_id = ?').get(userId);
-  const ctx = await getBrowser();
-  const page = await ctx.newPage();
+  // Open the job URL in the same Chrome profile that has the login session
+  launchRealChrome(job.job_url);
 
-  try {
-    // Navigate to job application page
-    await page.goto(job.job_url, { waitUntil: 'domcontentloaded', timeout: 20000 });
+  db.prepare('INSERT INTO activity_logs (user_id, action, details) VALUES (?, ?, ?)')
+    .run(userId, 'auto_opened', `${job.title} — opened in Chrome`);
 
-    // Look for and click the Apply button
-    const applyBtn = await page.$('a[href*="apply"], button:has-text("Apply"), a:has-text("Apply now"), [data-action="apply"]');
-    if (applyBtn) {
-      await applyBtn.click();
-      await page.waitForLoadState('domcontentloaded', { timeout: 15000 });
-    }
-
-    // Check if we hit a login wall — if so, we can't proceed automatically
-    const loginForm = await page.$('input[type="password"], form[name="signIn"], #ap_password');
-    if (loginForm) {
-      throw new Error('Amazon login required — please log in manually in the browser window, then re-enable monitoring');
-    }
-
-    // Check for CAPTCHA
-    const captcha = await page.$('#captchacharacters, .a-box-inner img[src*="captcha"]');
-    if (captcha) {
-      throw new Error('CAPTCHA detected — please solve it manually in the browser window');
-    }
-
-    // Pre-fill profile fields as fast as possible
-    if (profile) {
-      const amazonEmail = profile.amazon_email_encrypted ? decrypt(profile.amazon_email_encrypted) : profile.email;
-      const fills = [
-        ['input[name*="name" i], input[id*="name" i], input[autocomplete="name"]', profile.full_name],
-        ['input[name*="email" i], input[id*="email" i], input[type="email"]', amazonEmail],
-        ['input[name*="phone" i], input[id*="phone" i], input[type="tel"]', profile.phone],
-        ['input[name*="address" i], input[id*="address" i]', profile.address],
-      ];
-      for (const [sel, val] of fills) {
-        if (!val) continue;
-        try {
-          const el = await page.$(sel);
-          if (el) {
-            await el.fill('');
-            await el.fill(val);
-          }
-        } catch { /* field not present */ }
-      }
-
-      // Upload CV if available and upload field exists
-      if (profile.cv_path) {
-        try {
-          const fileInput = await page.$('input[type="file"]');
-          if (fileInput) {
-            await fileInput.setInputFiles(join(__dirname, '..', '..', 'uploads', profile.cv_path));
-          }
-        } catch { /* no upload field */ }
-      }
-    }
-
-    // Try to submit the application form
-    const submitBtn = await page.$('button[type="submit"], input[type="submit"], button:has-text("Submit"), button:has-text("Continue"), button:has-text("Next")');
-    if (submitBtn) {
-      await submitBtn.click();
-      await page.waitForLoadState('domcontentloaded', { timeout: 10000 }).catch(() => {});
-    }
-
-    console.log(`[playwright] ✅ Auto-applied: ${job.title}`);
-  } finally {
-    await page.close();
-  }
-}
-
-/** Open browser for manual login session setup */
-export async function openLoginSession() {
-  const ctx = await getBrowser();
-  const page = await ctx.newPage();
-  await page.goto('https://www.amazon.jobs/en-gb/login', { waitUntil: 'domcontentloaded', timeout: 30000 });
-  return { message: 'Browser opened. Please log in to Amazon. Once done, auto-apply will work without login prompts.' };
+  return { success: true };
 }
 
 export async function closeBrowser() {
-  if (browserContext) {
-    await browserContext.close();
-    browserContext = null;
+  if (chromeProcess) {
+    try { chromeProcess.kill(); } catch {}
+    chromeProcess = null;
   }
 }

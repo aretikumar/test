@@ -25,9 +25,10 @@ const DEFAULT_SETTINGS = {
   auto_apply_enabled: true,
   check_interval_minutes: 5,
   notify_enabled: true,
+  job_type_filter: 'part-time',
   locations: {
     Coventry: true, Rugby: true, Daventry: true,
-    Banbury: true, Birmingham: true, Northampton: true,
+    Banbury: true, Birmingham: true, Northampton: true, Leicester: true,
   },
 };
 export async function getSettings() {

@@ -41,6 +41,18 @@ export default function JobDetailScreen({ route, navigation }) {
 
   return (
     <ScrollView style={s.wrap} contentContainerStyle={{ padding: 16 }}>
+      {/* Match indicator */}
+      {job.is_match ? (
+        <View style={[s.matchBadge, { backgroundColor: '#ff990020', borderColor: C.accent }]}>
+          <Text style={{ color: C.accent, fontWeight: '700', fontSize: 13 }}>⭐ Matches your filters — auto-apply enabled</Text>
+        </View>
+      ) : (
+        <View style={[s.matchBadge, { backgroundColor: '#448aff15', borderColor: C.blue }]}>
+          <Text style={{ color: C.blue, fontWeight: '600', fontSize: 13 }}>🌐 Browse only — doesn't match your current filters</Text>
+        </View>
+      )}
+
+      {/* Status */}
       <View style={[s.banner, { borderColor: st.color }]}>
         <Text style={[s.bannerText, { color: st.color }]}>{st.text}</Text>
       </View>
@@ -49,7 +61,7 @@ export default function JobDetailScreen({ route, navigation }) {
         <Text style={s.title}>{job.title}</Text>
         <View style={s.row}>
           <View style={s.field}><Text style={s.label}>📍 Location</Text><Text style={s.value}>{job.location}</Text></View>
-          <View style={s.field}><Text style={s.label}>⏰ Type</Text><Text style={[s.value, { color: C.blue }]}>{job.job_type || 'Part-Time'}</Text></View>
+          <View style={s.field}><Text style={s.label}>⏰ Type</Text><Text style={[s.value, { color: C.blue }]}>{job.job_type || 'N/A'}</Text></View>
         </View>
         <View style={s.row}>
           <View style={s.field}><Text style={s.label}>🔄 Shift</Text><Text style={s.value}>{job.shift || 'Not specified'}</Text></View>
@@ -58,10 +70,18 @@ export default function JobDetailScreen({ route, navigation }) {
         {job.description ? <Text style={s.desc}>{job.description}</Text> : null}
       </View>
 
+      {/* View on Amazon Jobs (read-only link) */}
+      {job.view_url ? (
+        <TouchableOpacity style={s.viewBtn} onPress={() => Linking.openURL(job.view_url)}>
+          <Text style={s.viewBtnText}>👁 View Full Details on Amazon Jobs</Text>
+        </TouchableOpacity>
+      ) : null}
+
+      {/* Apply button */}
       {!job.already_applied && job.status !== 'dismissed' && (
         <View style={{ gap: 10 }}>
           <TouchableOpacity style={s.applyBtn} onPress={openJob}>
-            <Text style={s.applyText}>🔗 Open & Apply on Amazon</Text>
+            <Text style={s.applyText}>🔗 Open & Apply on jobsatamazon.co.uk</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.dismissBtn} onPress={dismiss}>
             <Text style={s.dismissText}>Dismiss</Text>
@@ -88,6 +108,7 @@ export default function JobDetailScreen({ route, navigation }) {
 const s = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: C.bg },
   dim: { color: C.dim, padding: 20 },
+  matchBadge: { borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 10, alignItems: 'center' },
   banner: { borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 12, backgroundColor: C.card },
   bannerText: { fontWeight: '600', fontSize: 14 },
   card: { backgroundColor: C.card, borderRadius: 10, padding: 16, borderWidth: 1, borderColor: C.border, marginBottom: 14 },
@@ -97,6 +118,8 @@ const s = StyleSheet.create({
   label: { color: C.dim, fontSize: 12, marginBottom: 2 },
   value: { color: C.text, fontSize: 14 },
   desc: { color: C.dim, fontSize: 13, lineHeight: 20, marginTop: 10 },
+  viewBtn: { backgroundColor: C.card, borderRadius: 10, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: C.blue, marginBottom: 10 },
+  viewBtnText: { color: C.blue, fontWeight: '600', fontSize: 14 },
   applyBtn: { backgroundColor: C.accent, borderRadius: 10, padding: 14, alignItems: 'center' },
   applyText: { color: '#000', fontWeight: '600', fontSize: 15 },
   dismissBtn: { backgroundColor: C.card, borderRadius: 10, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: C.border },
